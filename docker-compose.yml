@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  auth-service:
+    image: gloriasinseswa/leave-auth-service:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.auth
+    ports:
+      - "8080:8080"
+    depends_on:
+      - auth-db
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://auth-db:5432/${AUTH_DB_NAME:-auth_db}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres123}
+    env_file:
+      - .env
+
+  leave-service:
+    image: mauricesinseswa/leave-service:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.python
+    ports:
+      - "8000:8000"
+    depends_on:
+      - leave-db
+    command: gunicorn --config gunicorn.conf.py leave_system.wsgi:application
+    environment:
+      DB_HOST: leave-db
+      DB_NAME: ${LEAVE_DB_NAME:-leave_db}
+      DB_USER: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-postgres123}
+      GUNICORN_CMD_ARGS: "--reload"
+    env_file:
+      - .env
+
+  auth-db:
+    image: postgres:13
+    environment:
+      POSTGRES_DB: ${AUTH_DB_NAME:-auth_db}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres123}
+    env_file:
+      - .env
+    volumes:
+      - auth_postgres_data:/var/lib/postgresql/data
+
+  leave-db:
+    image: postgres:13
+    environment:
+      POSTGRES_DB: ${LEAVE_DB_NAME:-leave_db}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres123}
+    env_file:
+      - .env
+    volumes:
+      - leave_postgres_data:/var/lib/postgresql/data
+
+volumes:
+  auth_postgres_data:
+  leave_postgres_data:
